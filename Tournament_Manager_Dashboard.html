@@ -358,18 +358,7 @@
             overflow: hidden;
             margin-top: 8px;
         }
-        .table-wrapper .table {
-            --bs-table-color: var(--text);
-            --bs-table-bg: transparent;
-            --bs-table-border-color: rgba(51,65,85,0.65);
-            --bs-table-striped-color: var(--text);
-            --bs-table-striped-bg: rgba(249,115,22,0.03);
-            --bs-table-hover-color: var(--text);
-            --bs-table-hover-bg: rgba(249,115,22,0.05);
-            color: var(--text) !important;
-            background: transparent !important;
-            margin: 0 !important;
-        }
+        .table { color: var(--text) !important; margin: 0 !important; }
         .table thead th {
             background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(14,165,233,0.05)) !important;
             color: var(--text-muted) !important;
@@ -381,7 +370,6 @@
         .table tbody tr {
             border-bottom: 1px solid rgba(51,65,85,0.5) !important;
             transition: background 0.15s;
-            background: transparent !important;
         }
         .table tbody tr:hover { background: rgba(249,115,22,0.04) !important; }
         .table tbody td {
@@ -389,7 +377,6 @@
             border: none !important;
             vertical-align: middle;
             color: var(--text) !important;
-            background: transparent !important;
         }
         .mini-photo {
             width: 38px; height: 48px;
@@ -575,69 +562,7 @@
         }
         .school-tag.active { border-color: var(--primary); color: var(--primary); background: rgba(249,115,22,0.07); }
         .school-tag:hover { border-color: var(--primary); color: var(--text); }
-                /* CSV UPLOAD */
-        .upload-panel {
-            margin: 0 40px 12px;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: rgba(148,163,184,0.06);
-            position: relative;
-            z-index: 1;
-        }
-        .upload-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .upload-input {
-            flex: 1 1 360px;
-            min-width: 220px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text);
-            padding: 8px 10px;
-            font-size: 0.84rem;
-        }
-        .upload-input::file-selector-button {
-            margin-right: 10px;
-            border: 1px solid var(--border);
-            background: rgba(148,163,184,0.1);
-            color: var(--text);
-            border-radius: 8px;
-            padding: 6px 10px;
-            cursor: pointer;
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
-        .upload-btn {
-            border: 1px solid rgba(14,165,233,0.4);
-            background: rgba(14,165,233,0.14);
-            color: var(--accent);
-            border-radius: 10px;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .upload-btn:hover { background: rgba(14,165,233,0.24); }
-        .upload-btn:disabled { opacity: 0.6; cursor: wait; }
-        .upload-hint {
-            font-size: 0.74rem;
-            color: var(--text-muted);
-            margin-top: 8px;
-            line-height: 1.35;
-        }
-        .upload-status {
-            margin-top: 8px;
-            font-size: 0.78rem;
-            color: var(--text-muted);
-        }
-        .upload-status.ok { color: #86efac; }
-        .upload-status.warn { color: #facc15; }
-        .upload-status.err { color: #fca5a5; }
+
         /* ── MODAL ── */
         .player-modal-overlay {
             display: none;
@@ -896,7 +821,6 @@
         @media (max-width: 700px) {
             .hero { padding: 20px; }
             .content-area, .toolbar, .main-tabs { padding-left: 16px; padding-right: 16px; }
-            .upload-panel { margin-left: 16px; margin-right: 16px; }
             .teams-grid { grid-template-columns: 1fr; }
             .modal-review-row { grid-template-columns: 1fr; }
             .modal-review-save { width: 100%; }
@@ -931,17 +855,6 @@
 
 <!-- ══ TEAMS FILTERS ══ -->
 <div id="teamsFilters">
-    <div class="upload-panel">
-        <div class="upload-row">
-            <input id="csvUploadInput" class="upload-input" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-            <button id="csvUploadBtn" class="upload-btn" onclick="handleCsvUpload()">Refresh Teams From CSV/Excel</button>
-        </div>
-        <div class="upload-hint">
-            Accepted imports: Registro Buzzer Beater - School (x_school) and School (x_school) in CSV, XLSX, or XLS format.
-        </div>
-        <div id="csvUploadStatus" class="upload-status">No upload yet.</div>
-    </div>
-
     <div class="toolbar">
         <div class="search-box">
             <span class="search-icon">🔍</span>
@@ -1019,7 +932,6 @@
 </div>
 
 <!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const TEAMS_DATA = [
   {
@@ -4431,10 +4343,29 @@ const TEAMS_DATA = [
 
 // ── INIT ──
 const TEAM_BY_SOURCE_IDX = {};
+TEAMS_DATA.forEach(team => {
+    TEAM_BY_SOURCE_IDX[team.source_idx] = team;
+});
+
 const ALL_PLAYERS = [];
+TEAMS_DATA.forEach(team => {
+    team.players.forEach((p, playerIdx) => {
+        ALL_PLAYERS.push({
+            record_id: p.record_id,
+            name: p.name,
+            dob: p.dob,
+            dob_display: p.dob_display,
+            school: team.school,
+            team: team.team,
+            category: team.category,
+            gender: team.gender,
+            team_source_idx: team.source_idx,
+            player_idx: playerIdx,
+        });
+    });
+});
 
 const REVIEW_STORAGE_KEY = 'bb_review_state_v1';
-const IMPORT_STORAGE_KEY = 'bb_import_data_v1';
 let reviewState = loadReviewState();
 let genderFilter = null;
 let schoolFilter = null;
@@ -4447,91 +4378,12 @@ let modalSequence = [];
 let modalSequencePos = -1;
 let currentPlayerRef = null;
 
-rebuildIndexes();
-
 window.addEventListener('DOMContentLoaded', () => {
-    const restored = restoreImportedData();
-    const uploadInput = document.getElementById('csvUploadInput');
-    if (uploadInput) {
-        uploadInput.addEventListener('change', () => {
-            setUploadStatus(uploadInput.files && uploadInput.files[0]
-                ? `Selected: ${uploadInput.files[0].name}`
-                : 'No upload yet.');
-        });
-    }
-
     buildSchoolTags();
     applyFilters();
     renderReviewBoard();
     updateHeroStats();
-
-    if (restored) {
-        setUploadStatus(`Restored ${TEAMS_DATA.length} teams and ${ALL_PLAYERS.length} players from your last successful import.`, 'ok');
-    }
 });
-
-function rebuildIndexes() {
-    Object.keys(TEAM_BY_SOURCE_IDX).forEach(key => delete TEAM_BY_SOURCE_IDX[key]);
-    ALL_PLAYERS.length = 0;
-
-    TEAMS_DATA.forEach((team, teamIdx) => {
-        if (!Number.isInteger(team.source_idx)) {
-            team.source_idx = teamIdx;
-        }
-        TEAM_BY_SOURCE_IDX[team.source_idx] = team;
-        if (!Array.isArray(team.players)) {
-            team.players = [];
-        }
-
-        team.players.forEach((p, playerIdx) => {
-            ALL_PLAYERS.push({
-                record_id: p.record_id,
-                name: p.name,
-                dob: p.dob,
-                dob_display: p.dob_display,
-                school: team.school,
-                team: team.team,
-                category: team.category,
-                gender: team.gender,
-                team_source_idx: team.source_idx,
-                player_idx: playerIdx,
-            });
-        });
-    });
-}
-
-function countPlayers(teams) {
-    if (!Array.isArray(teams)) return 0;
-    return teams.reduce((sum, team) => {
-        const players = Array.isArray(team && team.players) ? team.players.length : 0;
-        return sum + players;
-    }, 0);
-}
-
-function persistImportedData() {
-    try {
-        localStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(TEAMS_DATA));
-    } catch (err) {
-        // ignore storage quota issues and keep app running
-    }
-}
-
-function restoreImportedData() {
-    try {
-        const raw = localStorage.getItem(IMPORT_STORAGE_KEY);
-        if (!raw) return false;
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) return false;
-        if (countPlayers(parsed) === 0) return false;
-
-        TEAMS_DATA.length = 0;
-        TEAMS_DATA.push(...parsed);
-        rebuildIndexes();
-        return true;
-    } catch (err) {
-        return false;
-    }
-}
 
 function loadReviewState() {
     try {
@@ -4680,418 +4532,6 @@ function clearFilters() {
     document.getElementById('filterAll').style.display = 'none';
     document.querySelectorAll('.school-tag').forEach(t => t.classList.remove('active'));
     applyFilters();
-}
-
-function setUploadStatus(message, kind = '') {
-    const statusEl = document.getElementById('csvUploadStatus');
-    if (!statusEl) return;
-    statusEl.textContent = message;
-    statusEl.className = kind ? `upload-status ${kind}` : 'upload-status';
-}
-
-async function handleCsvUpload() {
-    const input = document.getElementById('csvUploadInput');
-    const btn = document.getElementById('csvUploadBtn');
-    if (!input || !input.files || !input.files[0]) {
-        setUploadStatus('Select a CSV or Excel file first.', 'err');
-        return;
-    }
-
-    const file = input.files[0];
-    if (btn) btn.disabled = true;
-    setUploadStatus(`Loading ${file.name}...`);
-
-    try {
-        const parsed = await parseUploadFile(file);
-        const result = buildTeamsFromRows(parsed.headers, parsed.rows);
-        const teams = result.teams;
-
-        if (result.playerCount === 0) {
-            setUploadStatus(`Imported ${file.name}, but it has no player rows. Keeping your current dashboard data unchanged.`, 'warn');
-            return;
-        }
-
-        TEAMS_DATA.length = 0;
-        TEAMS_DATA.push(...teams);
-        rebuildIndexes();
-        pruneReviewStateToCurrentData();
-        persistImportedData();
-
-        clearFilters();
-        buildSchoolTags();
-        applyFilters();
-        renderReviewBoard();
-        updateHeroStats();
-
-        setUploadStatus(`Loaded ${teams.length} teams and ${result.playerCount} players from ${file.name}.`, 'ok');
-    } catch (err) {
-        setUploadStatus(`Upload failed: ${err.message}`, 'err');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
-
-async function parseUploadFile(file) {
-    const lowerName = (file.name || '').toLowerCase();
-    if (lowerName.endsWith('.csv')) {
-        const text = await file.text();
-        return parseCsv(text);
-    }
-
-    if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
-        return parseExcelFile(file);
-    }
-
-    throw new Error('Unsupported file type. Use .csv, .xlsx, or .xls.');
-}
-
-async function parseExcelFile(file) {
-    if (typeof XLSX === 'undefined') {
-        throw new Error('Excel parser failed to load. Refresh and try again, or upload CSV.');
-    }
-
-    let workbook;
-    try {
-        const bytes = await file.arrayBuffer();
-        workbook = XLSX.read(bytes, { type: 'array', raw: false, cellDates: false });
-    } catch (err) {
-        throw new Error('Unable to read Excel file.');
-    }
-
-    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-        throw new Error('Excel file has no sheets.');
-    }
-
-    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-    const grid = XLSX.utils.sheet_to_json(firstSheet, {
-        header: 1,
-        raw: false,
-        defval: '',
-        blankrows: false,
-    });
-
-    if (!Array.isArray(grid) || grid.length === 0) {
-        return { headers: [], rows: [] };
-    }
-
-    const headers = grid[0].map(h => String(h || '').replace(/^\uFEFF/, '').trim());
-    const rows = grid.slice(1)
-        .map(r => Array.isArray(r) ? r.map(v => String(v || '').trim()) : [])
-        .filter(r => r.some(cell => cell.length > 0));
-
-    return { headers, rows };
-}
-
-function pruneReviewStateToCurrentData() {
-    const validKeys = new Set(ALL_PLAYERS.map(p => p.record_id));
-    Object.keys(reviewState).forEach(key => {
-        if (!validKeys.has(key)) {
-            delete reviewState[key];
-        }
-    });
-    persistReviewState();
-}
-
-function buildTeamsFromRows(headers, rows) {
-    if (!headers.length) {
-        throw new Error('File is empty or missing headers.');
-    }
-
-    const idx = {};
-    headers.forEach((header, i) => {
-        idx[normalizeHeader(header)] = i;
-    });
-
-    const hasAnyHeader = (names) => names.some(name => idx[normalizeHeader(name)] !== undefined);
-
-    const pick = (row, names) => {
-        for (const name of names) {
-            const i = idx[normalizeHeader(name)];
-            if (i !== undefined) {
-                return (row[i] || '').trim();
-            }
-        }
-        return '';
-    };
-
-    if (!hasAnyHeader(['x_studio_teams/x_studio_players/x_name', 'Player Name'])) {
-        throw new Error('Missing player column in this export.');
-    }
-
-    const teamsMap = new Map();
-    let playerCounter = 1;
-    let currentSchool = '';
-    let currentTeam = '';
-    let currentGender = '';
-    let currentCategory = '';
-
-    const getOrCreateTeam = (teamKey) => {
-        const key = String(teamKey || '').trim() || `${currentSchool || 'Unknown School'} - Unassigned`;
-        if (!teamsMap.has(key)) {
-            teamsMap.set(key, {
-                source_idx: teamsMap.size,
-                team: key,
-                school: currentSchool || 'Unknown School',
-                gender: currentGender || '',
-                category: currentCategory || '',
-                players: [],
-            });
-        } else {
-            const team = teamsMap.get(key);
-            if (!team.school && currentSchool) team.school = currentSchool;
-            if (!team.gender && currentGender) team.gender = currentGender;
-            if (!team.category && currentCategory) team.category = currentCategory;
-        }
-        return teamsMap.get(key);
-    };
-
-    rows.forEach(row => {
-        const schoolVal = pick(row, ['Nombre del Colegio', 'School', 'x_name']);
-        const teamVal = pick(row, ['x_studio_teams/x_name', 'Team']);
-        const genderVal = pick(row, ['x_studio_teams/x_studio_sex', 'Gender', 'Sexo']);
-        const categoryVal = pick(row, ['x_studio_teams/x_studio_category', 'Category', 'Categoria']);
-        const playerName = pick(row, ['x_studio_teams/x_studio_players/x_name', 'Player Name']);
-
-        if (schoolVal) currentSchool = schoolVal;
-        if (teamVal) currentTeam = teamVal;
-        if (genderVal) currentGender = genderVal;
-        if (categoryVal) currentCategory = categoryVal;
-        if (teamVal) getOrCreateTeam(teamVal);
-        if (!playerName) return;
-
-        const certHtml = pick(row, [
-            'x_studio_teams/x_studio_players/x_studio_certificado_de_nacimiento_html',
-            'Birth Certificate HTML'
-        ]);
-        const waiverHtml = pick(row, [
-            'x_studio_teams/x_studio_players/x_waiver_html',
-            'x_studio_teams/x_studio_players/x_studio_waiver_html',
-            'Waiver HTML'
-        ]);
-        const certUrl = extractDocUrl(certHtml);
-        const waiverUrl = extractDocUrl(waiverHtml);
-        const certPreview = drivePreviewUrl(certUrl);
-        const waiverPreview = drivePreviewUrl(waiverUrl);
-        const photo = extractPhotoUrl(certHtml) || extractPhotoUrl(waiverHtml);
-        const photoFull = extractPhotoFullUrl(certHtml) || extractPhotoFullUrl(waiverHtml);
-        const dob = pick(row, ['x_studio_teams/x_studio_players/x_studio_date_of_birth', 'Date of Birth']);
-        const jerseyRaw = pick(row, ['x_studio_teams/x_studio_players/x_studio_jersey_number', 'Jersey #']);
-        const grade = pick(row, ['x_studio_teams/x_studio_players/x_studio_grade', 'Grade']);
-        const teamKey = currentTeam || `${currentSchool || 'Unknown School'} - Unassigned`;
-
-        getOrCreateTeam(teamKey).players.push({
-            record_id: `player_${String(playerCounter).padStart(4, '0')}`,
-            name: playerName,
-            dob: dob,
-            dob_display: formatDobDisplay(dob),
-            jersey: normalizeJersey(jerseyRaw),
-            grade: grade || '',
-            cert_url: certUrl,
-            waiver_url: waiverUrl,
-            cert_preview: certPreview,
-            waiver_preview: waiverPreview,
-            photo: photo,
-            photo_full: photoFull,
-        });
-        playerCounter += 1;
-    });
-
-    const teams = Array.from(teamsMap.values()).map((team, idx) => ({
-        ...team,
-        source_idx: idx,
-    }));
-
-    return { teams, playerCount: playerCounter - 1 };
-}
-
-function normalizeHeader(header) {
-    return String(header || '').replace(/^\uFEFF/, '').trim().toLowerCase();
-}
-
-function parseCsv(text) {
-    const delimiter = detectCsvDelimiter(text);
-    const rows = [];
-    let row = [];
-    let field = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < text.length; i += 1) {
-        const ch = text[i];
-        const next = text[i + 1];
-
-        if (ch === '"') {
-            if (inQuotes && next === '"') {
-                field += '"';
-                i += 1;
-            } else {
-                inQuotes = !inQuotes;
-            }
-            continue;
-        }
-
-        if (ch === delimiter && !inQuotes) {
-            row.push(field);
-            field = '';
-            continue;
-        }
-
-        if ((ch === '\n' || ch === '\r') && !inQuotes) {
-            if (ch === '\r' && next === '\n') i += 1;
-            row.push(field);
-            rows.push(row);
-            row = [];
-            field = '';
-            continue;
-        }
-
-        field += ch;
-    }
-
-    if (field.length > 0 || row.length > 0) {
-        row.push(field);
-        rows.push(row);
-    }
-
-    if (!rows.length) {
-        return { headers: [], rows: [] };
-    }
-
-    const headers = rows[0].map(h => String(h || '').replace(/^\uFEFF/, '').trim());
-    const body = rows.slice(1).filter(r => r.some(cell => String(cell || '').trim().length > 0));
-    return { headers, rows: body };
-}
-
-function detectCsvDelimiter(text) {
-    const preview = String(text || '').split(/\r?\n/).slice(0, 5).join('\n');
-    const commaCount = countDelimiterOutsideQuotes(preview, ',');
-    const semicolonCount = countDelimiterOutsideQuotes(preview, ';');
-    return semicolonCount > commaCount ? ';' : ',';
-}
-
-function countDelimiterOutsideQuotes(text, delimiter) {
-    let count = 0;
-    let inQuotes = false;
-    for (let i = 0; i < text.length; i += 1) {
-        const ch = text[i];
-        const next = text[i + 1];
-        if (ch === '"') {
-            if (inQuotes && next === '"') {
-                i += 1;
-            } else {
-                inQuotes = !inQuotes;
-            }
-            continue;
-        }
-        if (!inQuotes && ch === delimiter) count += 1;
-    }
-    return count;
-}
-
-function extractHref(html) {
-    if (!html) return '';
-    const m = String(html).match(/href=['"]?([^'" >]+)/i);
-    return m ? decodeHtmlEntity(m[1].trim()) : '';
-}
-
-function extractImgSrc(html) {
-    if (!html) return '';
-    const m = String(html).match(/<img[^>]*src=['"]([^'"]+)['"]/i);
-    return m ? decodeHtmlEntity(m[1].trim()) : '';
-}
-
-function decodeHtmlEntity(value) {
-    if (!value) return '';
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = value;
-    return textarea.value;
-}
-
-function extractDriveFileId(url) {
-    if (!url) return '';
-    try {
-        const parsed = new URL(url.trim());
-        const host = parsed.hostname.toLowerCase();
-        if (!host.includes('drive.google.com') && !host.includes('docs.google.com')) {
-            return '';
-        }
-
-        const path = parsed.pathname;
-        let m = path.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
-        if (m) return m[1];
-        m = path.match(/\/d\/([A-Za-z0-9_-]+)/);
-        if (m) return m[1];
-        return parsed.searchParams.get('id') || '';
-    } catch (err) {
-        return '';
-    }
-}
-
-function canonicalDriveViewUrl(url) {
-    const fileId = extractDriveFileId(url);
-    if (!fileId) return url || '';
-    return `https://drive.google.com/file/d/${fileId}/view?usp=drive_link`;
-}
-
-function drivePreviewUrl(url) {
-    const fileId = extractDriveFileId(url);
-    if (!fileId) return '';
-    return `https://drive.google.com/file/d/${fileId}/preview`;
-}
-
-function driveThumbnailUrl(url) {
-    const fileId = extractDriveFileId(url);
-    if (!fileId) return '';
-    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
-}
-
-function extractDocUrl(html) {
-    const href = extractHref(html);
-    if (!href) return '';
-    return canonicalDriveViewUrl(href);
-}
-
-function extractPhotoUrl(html) {
-    const imgSrc = extractImgSrc(html);
-    if (imgSrc) {
-        return driveThumbnailUrl(imgSrc) || imgSrc;
-    }
-    const href = extractHref(html);
-    if (!href) return '';
-    return driveThumbnailUrl(href);
-}
-
-function extractPhotoFullUrl(html) {
-    return extractImgSrc(html);
-}
-
-function normalizeJersey(raw) {
-    const text = String(raw || '').trim();
-    if (!text) return '—';
-    const num = Number(text);
-    if (Number.isFinite(num)) {
-        return String(num).replace(/\.0+$/, '');
-    }
-    return text;
-}
-
-function formatDobDisplay(dobRaw) {
-    const value = String(dobRaw || '').trim();
-    if (!value) return '—';
-    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    let date;
-    if (isoMatch) {
-        date = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
-    } else {
-        date = new Date(value);
-    }
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: '2-digit',
-    });
 }
 
 function getFilteredTeams() {
@@ -5494,4 +4934,3 @@ function escHtml(str) {
 </script>
 </body>
 </html>
-
