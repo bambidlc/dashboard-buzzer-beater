@@ -5051,14 +5051,48 @@ function getGenderCode(value) {
     return GENDER_CODE_BY_TOKEN[token] || '';
 }
 
-function buildCategoryCode(categoryRaw, genderRaw) {
+function parseCategoryGenderFromTeamName(teamNameRaw) {
+    const raw = String(teamNameRaw || '').trim();
+    if (!raw) {
+        return { categoryBaseCode: '', genderCode: '' };
+    }
+
+    const parts = raw.split('-').map(part => part.trim()).filter(Boolean);
+    let categoryBaseCode = '';
+    let genderCode = '';
+
+    for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const part = parts[i];
+        if (!genderCode) {
+            genderCode = getGenderCode(part);
+        }
+        if (!categoryBaseCode) {
+            categoryBaseCode = getCategoryBaseCode(part);
+        }
+        if (genderCode && categoryBaseCode) {
+            break;
+        }
+    }
+
+    if (!genderCode) {
+        genderCode = getGenderCode(raw);
+    }
+    if (!categoryBaseCode) {
+        categoryBaseCode = getCategoryBaseCode(raw);
+    }
+
+    return { categoryBaseCode, genderCode };
+}
+
+function buildCategoryCode(categoryRaw, genderRaw, teamNameRaw) {
     const explicit = getCategoryMetadataFromCode(categoryRaw);
     if (explicit && explicit.code && window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[explicit.code]) {
         return explicit.code;
     }
 
-    const categoryBaseCode = getCategoryBaseCode(categoryRaw);
-    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw);
+    const teamNameParts = parseCategoryGenderFromTeamName(teamNameRaw);
+    const categoryBaseCode = getCategoryBaseCode(categoryRaw) || teamNameParts.categoryBaseCode;
+    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw) || teamNameParts.genderCode;
     if (!categoryBaseCode || !genderCode) {
         return '';
     }
@@ -5075,8 +5109,8 @@ function normalizeGenderLabel(value) {
     return GENDER_LABEL_BY_CODE[genderCode] || '';
 }
 
-function normalizeCategoryAndGender(categoryRaw, genderRaw) {
-    const combinedCode = buildCategoryCode(categoryRaw, genderRaw);
+function normalizeCategoryAndGender(categoryRaw, genderRaw, teamNameRaw) {
+    const combinedCode = buildCategoryCode(categoryRaw, genderRaw, teamNameRaw);
     if (combinedCode) {
         const meta = getCategoryMetadataFromCode(combinedCode);
         if (meta && meta.category && meta.gender) {
@@ -5088,8 +5122,9 @@ function normalizeCategoryAndGender(categoryRaw, genderRaw) {
         }
     }
 
-    const categoryCode = getCategoryBaseCode(categoryRaw);
-    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw);
+    const teamNameParts = parseCategoryGenderFromTeamName(teamNameRaw);
+    const categoryCode = getCategoryBaseCode(categoryRaw) || teamNameParts.categoryBaseCode;
+    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw) || teamNameParts.genderCode;
     const category = CATEGORY_LABEL_BY_CODE[categoryCode] || '';
     const genderFromGender = GENDER_LABEL_BY_CODE[genderCode] || '';
     const genderFromCategory = normalizeGenderLabel(categoryRaw);
@@ -5177,7 +5212,7 @@ function buildTeamsFromRows(headers, rows) {
         const genderVal = pick(row, ['x_studio_teams/x_studio_sex', 'Gender', 'Sexo']);
         const categoryVal = pick(row, ['x_studio_teams/x_studio_category', 'Category', 'Categoria']);
         const playerName = pick(row, ['x_studio_teams/x_studio_players/x_name', 'Player Name']);
-        const normalized = normalizeCategoryAndGender(categoryVal, genderVal);
+        const normalized = normalizeCategoryAndGender(categoryVal, genderVal, teamVal || currentTeam);
 
         if (schoolVal) currentSchool = schoolVal;
         if (teamVal) currentTeam = teamVal;
@@ -5631,7 +5666,7 @@ function getTeamCategoryCode(team) {
         return savedCode;
     }
 
-    const combinedFromRaw = buildCategoryCode(team && team.category, team && team.gender);
+    const combinedFromRaw = buildCategoryCode(team && team.category, team && team.gender, team && team.team);
     if (combinedFromRaw && window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[combinedFromRaw]) {
         return combinedFromRaw;
     }
