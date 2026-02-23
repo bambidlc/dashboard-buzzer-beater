@@ -4953,6 +4953,248 @@ function pruneReviewStateToCurrentData() {
     persistReviewState();
 }
 
+const CATEGORY_LABEL_BY_CODE = Object.freeze({
+    J: 'Juvenil',
+    JR: 'Junior',
+    M: 'Mini',
+    P: 'Publica',
+    SR: 'Senior',
+});
+
+const CATEGORY_BASE_CODE_BY_TOKEN = Object.freeze({
+    j: 'J',
+    juv: 'J',
+    juvenil: 'J',
+    jr: 'JR',
+    junior: 'JR',
+    m: 'M',
+    mini: 'M',
+    minir: 'M',
+    p: 'P',
+    pub: 'P',
+    publica: 'P',
+    public: 'P',
+    sr: 'SR',
+    senior: 'SR',
+});
+
+const GENDER_CODE_BY_TOKEN = Object.freeze({
+    m: 'M',
+    masc: 'M',
+    masculine: 'M',
+    masculino: 'M',
+    masculina: 'M',
+    masuclino: 'M',
+    male: 'M',
+    f: 'F',
+    fem: 'F',
+    feminine: 'F',
+    femenino: 'F',
+    femenina: 'F',
+    female: 'F',
+});
+
+const GENDER_LABEL_BY_CODE = Object.freeze({
+    M: 'Masculino',
+    F: 'Femenino',
+});
+
+function normalizeImportToken(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '')
+        .trim();
+}
+
+function normalizeImportText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+}
+
+function tokenizeImportText(value) {
+    const normalized = normalizeImportText(value);
+    return normalized ? normalized.split(' ') : [];
+}
+
+function getCategoryMetadataFromCode(value) {
+    const compact = String(value || '').trim().toUpperCase().replace(/[^A-Z]/g, '');
+    if (!compact) return null;
+    if (window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[compact]) {
+        return { code: compact, ...window.CATEGORY_CODE_METADATA[compact] };
+    }
+    if (CATEGORY_LABEL_BY_CODE[compact]) {
+        return { code: compact, category: CATEGORY_LABEL_BY_CODE[compact], gender: '' };
+    }
+    return null;
+}
+
+function getCategoryBaseCode(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const explicit = getCategoryMetadataFromCode(raw);
+    if (explicit && explicit.code) {
+        const clean = String(explicit.code).trim().toUpperCase();
+        const base = (clean.endsWith('M') || clean.endsWith('F')) ? clean.slice(0, -1) : clean;
+        if (CATEGORY_LABEL_BY_CODE[base]) {
+            return base;
+        }
+    }
+
+    const tokens = tokenizeImportText(raw);
+    for (let i = 0; i < tokens.length; i += 1) {
+        const mapped = CATEGORY_BASE_CODE_BY_TOKEN[tokens[i]];
+        if (mapped) return mapped;
+    }
+    for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token.startsWith('junior')) return 'JR';
+        if (token.startsWith('juvenil')) return 'J';
+        if (token.startsWith('senior')) return 'SR';
+        if (token.startsWith('mini') || token.startsWith('minir')) return 'M';
+        if (token === 'public' || token.startsWith('publica')) return 'P';
+    }
+
+    const token = normalizeImportToken(raw);
+    if (CATEGORY_BASE_CODE_BY_TOKEN[token]) {
+        return CATEGORY_BASE_CODE_BY_TOKEN[token];
+    }
+    return '';
+}
+
+function getGenderCode(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const explicit = getCategoryMetadataFromCode(raw);
+    if (explicit && explicit.code) {
+        const clean = String(explicit.code).trim().toUpperCase();
+        const last = clean.slice(-1);
+        if (last === 'M' || last === 'F') {
+            return last;
+        }
+    }
+
+    const tokens = tokenizeImportText(raw);
+    for (let i = 0; i < tokens.length; i += 1) {
+        const mapped = GENDER_CODE_BY_TOKEN[tokens[i]];
+        if (mapped) return mapped;
+    }
+    for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token.startsWith('femenin') || token.startsWith('fem') || token.startsWith('female')) return 'F';
+        if (token.startsWith('masculin') || token.startsWith('masuclin') || token.startsWith('masc') || token.startsWith('male')) return 'M';
+    }
+
+    const token = normalizeImportToken(raw);
+    if (GENDER_CODE_BY_TOKEN[token]) {
+        return GENDER_CODE_BY_TOKEN[token];
+    }
+    return '';
+}
+
+function parseCategoryGenderFromTeamName(teamNameRaw) {
+    const raw = String(teamNameRaw || '').trim();
+    if (!raw) {
+        return { categoryBaseCode: '', genderCode: '' };
+    }
+
+    const parts = raw.split('-').map(part => part.trim()).filter(Boolean);
+    let categoryBaseCode = '';
+    let genderCode = '';
+
+    for (let i = parts.length - 1; i >= 0; i -= 1) {
+        const part = parts[i];
+        if (!genderCode) {
+            genderCode = getGenderCode(part);
+        }
+        if (!categoryBaseCode) {
+            categoryBaseCode = getCategoryBaseCode(part);
+        }
+        if (genderCode && categoryBaseCode) {
+            break;
+        }
+    }
+
+    if (!genderCode) {
+        genderCode = getGenderCode(raw);
+    }
+    if (!categoryBaseCode) {
+        categoryBaseCode = getCategoryBaseCode(raw);
+    }
+
+    return { categoryBaseCode, genderCode };
+}
+
+function buildCategoryCode(categoryRaw, genderRaw, teamNameRaw) {
+    const explicit = getCategoryMetadataFromCode(categoryRaw);
+    if (explicit && explicit.code && window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[explicit.code]) {
+        return explicit.code;
+    }
+
+    const teamNameParts = parseCategoryGenderFromTeamName(teamNameRaw);
+    const categoryBaseCode = getCategoryBaseCode(categoryRaw) || teamNameParts.categoryBaseCode;
+    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw) || teamNameParts.genderCode;
+    if (!categoryBaseCode || !genderCode) {
+        return '';
+    }
+    return `${categoryBaseCode}${genderCode}`;
+}
+
+function normalizeCategoryLabel(value) {
+    const baseCode = getCategoryBaseCode(value);
+    return CATEGORY_LABEL_BY_CODE[baseCode] || '';
+}
+
+function normalizeGenderLabel(value) {
+    const genderCode = getGenderCode(value);
+    return GENDER_LABEL_BY_CODE[genderCode] || '';
+}
+
+function normalizeCategoryAndGender(categoryRaw, genderRaw, teamNameRaw) {
+    const combinedCode = buildCategoryCode(categoryRaw, genderRaw, teamNameRaw);
+    if (combinedCode) {
+        const meta = getCategoryMetadataFromCode(combinedCode);
+        if (meta && meta.category && meta.gender) {
+            return {
+                code: combinedCode,
+                category: meta.category,
+                gender: meta.gender,
+            };
+        }
+    }
+
+    const teamNameParts = parseCategoryGenderFromTeamName(teamNameRaw);
+    const categoryCode = getCategoryBaseCode(categoryRaw) || teamNameParts.categoryBaseCode;
+    const genderCode = getGenderCode(genderRaw) || getGenderCode(categoryRaw) || teamNameParts.genderCode;
+    const category = CATEGORY_LABEL_BY_CODE[categoryCode] || '';
+    const genderFromGender = GENDER_LABEL_BY_CODE[genderCode] || '';
+    const genderFromCategory = normalizeGenderLabel(categoryRaw);
+    return {
+        code: combinedCode || (categoryCode && genderCode ? `${categoryCode}${genderCode}` : ''),
+        category,
+        gender: genderFromGender || genderFromCategory || '',
+    };
+}
+
+function makeTeamMapKey(teamName, schoolName, teamId) {
+    const cleanId = String(teamId || '').trim();
+    if (cleanId) {
+        return `id:${cleanId}`;
+    }
+
+    const cleanTeam = normalizeImportToken(teamName) || 'unassigned';
+    const cleanSchool = normalizeImportToken(schoolName) || 'unknownschool';
+    return `school:${cleanSchool}|team:${cleanTeam}`;
+}
+
 function buildTeamsFromRows(headers, rows) {
     if (!headers.length) {
         throw new Error('File is empty or missing headers.');
@@ -4983,41 +5225,51 @@ function buildTeamsFromRows(headers, rows) {
     let playerCounter = 1;
     let currentSchool = '';
     let currentTeam = '';
+    let currentTeamId = '';
     let currentGender = '';
     let currentCategory = '';
+    let currentCategoryCode = '';
 
-    const getOrCreateTeam = (teamKey) => {
-        const key = String(teamKey || '').trim() || `${currentSchool || 'Unknown School'} - Unassigned`;
-        if (!teamsMap.has(key)) {
-            teamsMap.set(key, {
+    const getOrCreateTeam = (teamName, teamId) => {
+        const displayTeamName = String(teamName || '').trim() || `${currentSchool || 'Unknown School'} - Unassigned`;
+        const mapKey = makeTeamMapKey(displayTeamName, currentSchool, teamId);
+        if (!teamsMap.has(mapKey)) {
+            teamsMap.set(mapKey, {
                 source_idx: teamsMap.size,
-                team: key,
+                team: displayTeamName,
                 school: currentSchool || 'Unknown School',
                 gender: currentGender || '',
                 category: currentCategory || '',
+                category_code: currentCategoryCode || '',
                 players: [],
             });
         } else {
-            const team = teamsMap.get(key);
+            const team = teamsMap.get(mapKey);
+            if ((!team.team || team.team.includes('Unassigned')) && displayTeamName) team.team = displayTeamName;
             if (!team.school && currentSchool) team.school = currentSchool;
             if (!team.gender && currentGender) team.gender = currentGender;
             if (!team.category && currentCategory) team.category = currentCategory;
+            if (!team.category_code && currentCategoryCode) team.category_code = currentCategoryCode;
         }
-        return teamsMap.get(key);
+        return teamsMap.get(mapKey);
     };
 
     rows.forEach(row => {
         const schoolVal = pick(row, ['Nombre del Colegio', 'School', 'x_name']);
         const teamVal = pick(row, ['x_studio_teams/x_name', 'Team']);
+        const teamIdVal = pick(row, ['x_studio_teams/id', 'Team ID']);
         const genderVal = pick(row, ['x_studio_teams/x_studio_sex', 'Gender', 'Sexo']);
         const categoryVal = pick(row, ['x_studio_teams/x_studio_category', 'Category', 'Categoria']);
         const playerName = pick(row, ['x_studio_teams/x_studio_players/x_name', 'Player Name']);
+        const normalized = normalizeCategoryAndGender(categoryVal, genderVal, teamVal || currentTeam);
 
         if (schoolVal) currentSchool = schoolVal;
         if (teamVal) currentTeam = teamVal;
-        if (genderVal) currentGender = genderVal;
-        if (categoryVal) currentCategory = categoryVal;
-        if (teamVal) getOrCreateTeam(teamVal);
+        if (teamIdVal) currentTeamId = teamIdVal;
+        if (normalized.gender) currentGender = normalized.gender;
+        if (normalized.category) currentCategory = normalized.category;
+        if (normalized.code) currentCategoryCode = normalized.code;
+        if (teamVal || teamIdVal) getOrCreateTeam(currentTeam, currentTeamId);
         if (!playerName) return;
 
         const certHtml = pick(row, [
@@ -5040,7 +5292,7 @@ function buildTeamsFromRows(headers, rows) {
         const grade = pick(row, ['x_studio_teams/x_studio_players/x_studio_grade', 'Grade']);
         const teamKey = currentTeam || `${currentSchool || 'Unknown School'} - Unassigned`;
 
-        getOrCreateTeam(teamKey).players.push({
+        getOrCreateTeam(teamKey, currentTeamId).players.push({
             record_id: `player_${String(playerCounter).padStart(4, '0')}`,
             name: playerName,
             dob: dob,
@@ -5458,26 +5710,16 @@ function normalizeReviewKey(value) {
 }
 
 function getTeamCategoryCode(team) {
-    const explicit = String(team && team.category || '').trim().toUpperCase();
-    if (window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[explicit]) {
-        return explicit;
+    const savedCode = String(team && team.category_code || '').trim().toUpperCase();
+    if (savedCode && window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[savedCode]) {
+        return savedCode;
     }
 
-    const category = normalizeReviewKey(team && team.category);
-    const gender = normalizeReviewKey(team && team.gender);
-
-    let categoryCode = '';
-    if (category.startsWith('junior')) categoryCode = 'JR';
-    else if (category.startsWith('juven')) categoryCode = 'J';
-    else if (category.startsWith('mini')) categoryCode = 'M';
-    else if (category.startsWith('public')) categoryCode = 'P';
-    else if (category.startsWith('senior')) categoryCode = 'SR';
-
-    let genderCode = '';
-    if (gender.startsWith('masc')) genderCode = 'M';
-    else if (gender.startsWith('fem')) genderCode = 'F';
-
-    return categoryCode && genderCode ? `${categoryCode}${genderCode}` : '';
+    const combinedFromRaw = buildCategoryCode(team && team.category, team && team.gender, team && team.team);
+    if (combinedFromRaw && window.CATEGORY_CODE_METADATA && window.CATEGORY_CODE_METADATA[combinedFromRaw]) {
+        return combinedFromRaw;
+    }
+    return combinedFromRaw;
 }
 
 function getEligibilityRulesMap() {
