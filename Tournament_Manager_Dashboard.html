@@ -4983,11 +4983,14 @@ const GENDER_CODE_BY_TOKEN = Object.freeze({
     masc: 'M',
     masculine: 'M',
     masculino: 'M',
+    masculina: 'M',
+    masuclino: 'M',
     male: 'M',
     f: 'F',
     fem: 'F',
     feminine: 'F',
     femenino: 'F',
+    femenina: 'F',
     female: 'F',
 });
 
@@ -5003,6 +5006,21 @@ function normalizeImportToken(value) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '')
         .trim();
+}
+
+function normalizeImportText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .replace(/\s+/g, ' ');
+}
+
+function tokenizeImportText(value) {
+    const normalized = normalizeImportText(value);
+    return normalized ? normalized.split(' ') : [];
 }
 
 function getCategoryMetadataFromCode(value) {
@@ -5030,8 +5048,25 @@ function getCategoryBaseCode(value) {
         }
     }
 
+    const tokens = tokenizeImportText(raw);
+    for (let i = 0; i < tokens.length; i += 1) {
+        const mapped = CATEGORY_BASE_CODE_BY_TOKEN[tokens[i]];
+        if (mapped) return mapped;
+    }
+    for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token.startsWith('junior')) return 'JR';
+        if (token.startsWith('juvenil')) return 'J';
+        if (token.startsWith('senior')) return 'SR';
+        if (token.startsWith('mini') || token.startsWith('minir')) return 'M';
+        if (token === 'public' || token.startsWith('publica')) return 'P';
+    }
+
     const token = normalizeImportToken(raw);
-    return CATEGORY_BASE_CODE_BY_TOKEN[token] || '';
+    if (CATEGORY_BASE_CODE_BY_TOKEN[token]) {
+        return CATEGORY_BASE_CODE_BY_TOKEN[token];
+    }
+    return '';
 }
 
 function getGenderCode(value) {
@@ -5047,8 +5082,22 @@ function getGenderCode(value) {
         }
     }
 
+    const tokens = tokenizeImportText(raw);
+    for (let i = 0; i < tokens.length; i += 1) {
+        const mapped = GENDER_CODE_BY_TOKEN[tokens[i]];
+        if (mapped) return mapped;
+    }
+    for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token.startsWith('femenin') || token.startsWith('fem') || token.startsWith('female')) return 'F';
+        if (token.startsWith('masculin') || token.startsWith('masuclin') || token.startsWith('masc') || token.startsWith('male')) return 'M';
+    }
+
     const token = normalizeImportToken(raw);
-    return GENDER_CODE_BY_TOKEN[token] || '';
+    if (GENDER_CODE_BY_TOKEN[token]) {
+        return GENDER_CODE_BY_TOKEN[token];
+    }
+    return '';
 }
 
 function parseCategoryGenderFromTeamName(teamNameRaw) {
